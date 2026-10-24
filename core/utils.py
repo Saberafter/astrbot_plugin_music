@@ -54,18 +54,26 @@ def pick_best_song(query: str, songs: list[Song]) -> Song | None:
     if not songs:
         return None
 
-    normalized_query = (
-        re.sub(r"[\s\-—_/、,，.。:：;；·|]+", " ", query.strip()).strip().lower()
-    )
+    def normalize(value: str) -> str:
+        return re.sub(r"[\W_]+", " ", value.casefold()).strip()
+
+    normalized_query = normalize(query)
     if not normalized_query:
         return songs[0]
 
     tokens = [token for token in normalized_query.split(" ") if len(token) >= 2]
 
-    def score_song(song: Song) -> float:
-        name = (song.name or song.title or "").strip().lower()
-        singer = (song.artists or song.author or "").strip().lower()
-        singers = [part.strip() for part in singer.split("/") if part.strip()]
+    def score_song(song: Song) -> tuple[int, float]:
+        name = normalize(song.name or song.title or "")
+        raw_singer = song.artists or song.author or ""
+        singer = normalize(raw_singer)
+        singers = [
+            normalize(part)
+            for part in re.split(r"[/、,，&;；]+", raw_singer)
+            if normalize(part)
+        ]
+        # Match both title and artist before preferring an exact title alone.
+        coverage = sum(token in name or token in singer for token in tokens)
         score = 0.0
         if name and name in normalized_query:
             score += 2.0
@@ -80,10 +88,10 @@ def pick_best_song(query: str, songs: list[Song]) -> Song | None:
             and any(singer_name in normalized_query for singer_name in singers)
         ):
             score += 3.0
-        return score
+        return coverage, score
 
     best_song = max(songs, key=score_song)
-    return best_song if score_song(best_song) > 0 else songs[0]
+    return best_song if score_song(best_song)[1] > 0 else songs[0]
 
 
 def parse_user_input(arg: str) -> tuple[int, list[str] | None, str | None]:
