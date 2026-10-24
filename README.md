@@ -13,6 +13,10 @@ _🎵 高性能多平台点歌插件 🎵_
 
 </div>
 
+> 本仓库是自维护 fork，默认分支为 `codex/onebot-direct-audio`。
+> QQ/OneBot 语音直接交给 NapCat 处理，绕过 AstrBot 的 WAV/base64 转换。
+> 本地语音要求两端共享相同的音频文件路径。安装及升级方法见 [FORK.md](FORK.md)。
+
 ---
 
 ## 🤝 插件介绍
@@ -31,7 +35,8 @@ _🎵 高性能多平台点歌插件 🎵_
 
 ## 📦 安装
 
-在 AstrBot 插件市场搜索 **astrbot_plugin_music**，点击安装即可。
+本 fork 请通过仓库地址 `https://github.com/Saberafter/astrbot_plugin_music` 安装。
+不要用插件市场中的官方版本覆盖，否则会丢失本 fork 的音频直传修改。
 
 ---
 
