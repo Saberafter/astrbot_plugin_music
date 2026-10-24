@@ -1,4 +1,5 @@
 from typing import ClassVar
+from urllib.parse import urlencode
 
 from astrbot.api import logger
 
@@ -26,15 +27,16 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
         )
 
     async def fetch_songs(self, keyword: str, limit: int = 5, extra=None) -> list[Song]:
+        query = urlencode(
+            {"keywords": keyword, "limit": limit, "type": 1, "offset": 0}
+        )
         result = await self._request(
-            url=f"{self.base_url}/search",
-            method="POST",
-            data={"keywords": keyword, "limit": limit, "type": 1, "offset": 0},
+            url=f"{self.base_url}/search?{query}",
         )
         if (
             not isinstance(result, dict)
-            or "result" not in result
-            or "songs" not in result["result"]
+            or not isinstance(result.get("result"), dict)
+            or not isinstance(result["result"].get("songs"), list)
         ):
             logger.error(f"返回了意料之外数据：{result}")
             return []
@@ -55,9 +57,7 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
         if song.comments:
             return song
         result = await self._request(
-            url=f"{self.base_url}/comment/hot",
-            method="POST",
-            data={"id": song.id, "type": 0},
+            url=f"{self.base_url}/comment/hot?{urlencode({'id': song.id, 'type': 0})}",
         )
         if not isinstance(result, dict) or "hotComments" not in result:
             logger.error(f"返回了意料之外数据：{result}")
@@ -94,10 +94,13 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
         # NodeJS API 返回结构示例:
         # { "data": [ { "url": "...", ... } ] }
         data = result.get("data")
-        if not data:
+        if not isinstance(data, list) or not data:
             return song
 
         info = data[0]
+        if not isinstance(info, dict) or str(info.get("id")) != str(song.id):
+            logger.warning("NodeJS API returned audio for an unexpected song")
+            return song
         audio_url = info.get("url")
         if audio_url and song.audio_url is None:
             song.audio_url = audio_url
