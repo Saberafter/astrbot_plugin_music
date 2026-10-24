@@ -96,47 +96,54 @@ class CardRenderer:
                 overlay,
             )
 
+            if media.get("play") is not None:
+                draw.text(
+                    (8, theme.thumb_height - 20),
+                    self.format_count(int(media["play"] or 0)),
+                    font=font,
+                    fill=theme.overlay_text_color,
+                )
             draw.text(
-                (8, theme.thumb_height - 20),
-                self.format_count(int(media.get("play", 0) or 0)),
-                font=font,
-                fill=theme.overlay_text_color,
-            )
-            draw.text(
-                (theme.card_width - 40, theme.thumb_height - 20),
+                (theme.card_width - 8, theme.thumb_height - 20),
                 str(media.get("duration") or "0:00"),
                 font=font,
                 fill=theme.overlay_text_color,
+                anchor="rt",
             )
 
             raw_title = BeautifulSoup(
                 str(media.get("title") or ""),
                 "html.parser",
             ).get_text()
-            title = (
-                raw_title[:18] + "\n" + raw_title[18:36] + "..."
-                if len(raw_title) > 36
-                else raw_title[:18] + "\n" + raw_title[18:]
-            )
             draw.text(
                 (8, theme.thumb_height + 8),
-                title,
+                self._fit_text(raw_title, theme.card_width - 16),
                 font=font,
                 fill=theme.title_color,
             )
 
             draw.text(
                 (8, theme.card_height - 30),
-                self._build_author_text(media),
+                self._fit_text(
+                    self._build_author_text(media), theme.card_width - 16
+                ),
                 font=font,
                 fill=theme.sub_text_color,
             )
 
+            label = str(index)
+            label_width = max(30, int(font.getlength(label)) + 16)
+            draw.rounded_rectangle(
+                (8, 8, 8 + label_width, 38),
+                radius=4,
+                fill="#222222",
+            )
             draw.text(
-                (theme.card_width - 20, theme.card_height - 25),
-                str(index),
+                (8 + label_width / 2, 23),
+                label,
                 font=font,
-                fill=theme.sub_text_color,
+                fill=theme.overlay_text_color,
+                anchor="mm",
             )
 
             mask = Image.new("L", (theme.card_width, theme.card_height), 0)
@@ -218,13 +225,20 @@ class CardRenderer:
                 "title": song.name,
                 "author": song.artists,
                 "duration": self._format_duration(song.duration),
-                "play": 0,
             }
             for song in songs
         ]
         return await self.render_list_image(
             media_list, cover_map, jpeg_quality=jpeg_quality
         )
+
+    def _fit_text(self, text: str, width: int) -> str:
+        text = " ".join(text.split())
+        if self.font.getlength(text) <= width:
+            return text
+        while text and self.font.getlength(text + "...") > width:
+            text = text[:-1]
+        return text + "..."
 
     @staticmethod
     def _build_author_text(media: dict) -> str:

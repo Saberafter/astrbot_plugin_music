@@ -14,7 +14,7 @@ from .core.lyrics_renderer import LyricsRenderer
 from .core.platform import BaseMusicPlayer
 from .core.sender import MusicSender
 from .core.song_renderer import CardRenderer
-from .core.utils import parse_user_input, pick_best_song
+from .core.utils import MODE_MAP_CN, SendMode, parse_user_input, pick_best_song
 
 
 class MusicPlugin(Star):
@@ -209,15 +209,30 @@ class MusicPlugin(Star):
 
     @filter.llm_tool()
     async def play_song_by_name(
-        self, event: AstrMessageEvent, song_name: str, platform: str = ""
+        self,
+        event: AstrMessageEvent,
+        song_name: str,
+        platform: str = "",
+        send_mode: str = "",
     ):
-        """当用户想听歌时，根据歌名（可含歌手）搜索并播放音乐。
+        """当用户想听歌时，根据歌名（可含歌手）搜索并播放音乐。用户要求换一种方式重发时，沿用上文歌名并指定 send_mode。
 
         Args:
             song_name(string): 歌曲名称或包含歌手的关键词
             platform(string): 音源标识或显示名称，例如 netease、netease_nodejs、neko、qqmusic、txqq。留空时使用默认音源。
+            send_mode(string): 仅对本次点歌生效，不修改默认设置。留空或 auto 使用默认方式；用户要语音用 voice，要签名音乐卡片用 ark_card，普通音乐卡片用 card，音频文件用 file_local，链接文本用 text。按用户当前要求选择，不要把发送方式写入歌名。
         """
-
+        modes = None
+        requested_mode = send_mode.strip().lower()
+        if requested_mode and requested_mode != "auto":
+            mode = MODE_MAP_CN.get(requested_mode)
+            if mode is None:
+                return "未知发送方式，请使用 voice、ark_card、card、file_local 或 text"
+            modes = (
+                ["record_local", "record_link"]
+                if mode == SendMode.RECORD_LOCAL
+                else [mode.name.lower()]
+            )
         player = (
             self.get_player(name=platform)
             if platform
@@ -233,7 +248,9 @@ class MusicPlugin(Star):
         selected_song = pick_best_song(song_name, songs)
         if not selected_song:
             return "没找到相关歌曲"
-        sent = await self.sender.send_song(event, player, selected_song)
+        sent = await self.sender.send_song(event, player, selected_song, modes=modes)
+        if not sent:
+            return "本次歌曲发送失败，没有发出。"
         if (
             sent
             and self.cfg.send_config.return_play_song_result

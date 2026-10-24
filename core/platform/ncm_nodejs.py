@@ -31,7 +31,7 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
             {"keywords": keyword, "limit": limit, "type": 1, "offset": 0}
         )
         result = await self._request(
-            url=f"{self.base_url}/search?{query}",
+            url=f"{self.base_url}/cloudsearch?{query}",
         )
         if (
             not isinstance(result, dict)
@@ -47,8 +47,9 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
             Song(
                 id=s.get("id"),
                 name=s.get("name"),
-                artists="、".join(a["name"] for a in s["artists"]),
-                duration=s.get("duration"),
+                artists="、".join(a["name"] for a in s.get("ar", [])),
+                duration=s.get("dt"),
+                cover_url=s.get("al", {}).get("picUrl"),
             )
             for s in songs
         ]
