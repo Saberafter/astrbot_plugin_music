@@ -134,6 +134,7 @@ class MusicPlayerItem(ConfigNode):
     trigger_words: list[str]
     default_sub_source: str | None
     base_url: str | None
+    api_token: str | None
     uin: str | None
     cookies: str | None
     proxy: str | None

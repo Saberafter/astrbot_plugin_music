@@ -738,6 +738,12 @@ class MusicSender:
             await event.send(event.plain_result("歌曲发送失败"))
             return False
 
+        if player.platform.name == "netease_nodejs" and song.note:
+            try:
+                await event.send(event.plain_result(f"【{song.name}】{song.note}"))
+            except Exception as exc:
+                logger.warning(f"歌曲已发出，但来源提示发送失败: {exc}")
+
         self.clear_selection_context(event)
         if self.cfg.search_config.recall_select:
             await self._recall_selection_message(event)

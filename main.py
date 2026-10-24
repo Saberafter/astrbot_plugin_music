@@ -255,6 +255,8 @@ class MusicPlugin(Star):
         sent = await self.sender.send_song(event, player, selected_song, modes=modes)
         if not sent:
             return "本次歌曲发送失败，没有发出。"
+        if player.platform.name == "netease_nodejs" and selected_song.note:
+            return f"已发送《{selected_song.name}》。{selected_song.note}"
         if (
             sent
             and self.cfg.send_config.return_play_song_result

@@ -25,6 +25,9 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
         self.base_url = (self.platform_cfg.base_url or self.DEFAULT_BASE_URL).rstrip(
             "/"
         )
+        self.api_headers = dict(self.HEADERS)
+        if self.platform_cfg.api_token:
+            self.api_headers["Authorization"] = f"Bearer {self.platform_cfg.api_token}"
 
     async def fetch_songs(self, keyword: str, limit: int = 5, extra=None) -> list[Song]:
         query = urlencode(
@@ -32,6 +35,7 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
         )
         result = await self._request(
             url=f"{self.base_url}/cloudsearch?{query}",
+            headers=self.api_headers,
         )
         if (
             not isinstance(result, dict)
@@ -59,6 +63,7 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
             return song
         result = await self._request(
             url=f"{self.base_url}/comment/hot?{urlencode({'id': song.id, 'type': 0})}",
+            headers=self.api_headers,
         )
         if not isinstance(result, dict) or "hotComments" not in result:
             logger.error(f"返回了意料之外数据：{result}")
@@ -70,7 +75,9 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
     async def fetch_lyrics(self, song: Song) -> Song:
         if song.lyrics:
             return song
-        result = await self._request(f"{self.base_url}/lyric?id={song.id}")
+        result = await self._request(
+            f"{self.base_url}/lyric?id={song.id}", headers=self.api_headers
+        )
         if not isinstance(result, dict) or "lrc" not in result:
             logger.error(f"返回了意料之外数据：{result}")
             return song
@@ -84,6 +91,7 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
             result = await self._request(
                 url=f"{self.base_url}/song/url?id={song.id}",
                 method="GET",
+                headers=self.api_headers,
             )
             if not isinstance(result, dict):
                 logger.error(f"返回了意料之外数据：{result}")
@@ -103,6 +111,18 @@ class NetEaseMusicNodeJS(BaseMusicPlayer):
             logger.warning("NodeJS API returned audio for an unexpected song")
             return song
         audio_url = info.get("url")
+        trial = info.get("freeTrialInfo")
+        short_audio = (
+            isinstance(info.get("time"), (int, float))
+            and song.duration
+            and song.duration > 60000
+            and 0 < info["time"] < min(song.duration * 0.75, 65000)
+        )
+        if info.get("preview") or (trial and trial != "null") or short_audio:
+            song.note = "当前音源仅提供试听片段，并非完整版。"
+        elif info.get("unblocked"):
+            source = str(info.get("source") or "未知")[:60]
+            song.note = f"使用第三方替代音源（{source}），完整性及版本未核验。"
         if audio_url and song.audio_url is None:
             song.audio_url = audio_url
 
