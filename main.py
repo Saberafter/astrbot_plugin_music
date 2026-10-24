@@ -219,7 +219,7 @@ class MusicPlugin(Star):
 
         Args:
             song_name(string): 歌曲名称或包含歌手的关键词
-            platform(string): 音源标识或显示名称，例如 netease、netease_nodejs、neko、qqmusic、txqq。留空时使用默认音源。
+            platform(string): 默认留空，使用后台配置的默认音源。只有用户明确指定音源时填写；网易云 NodeJS 标识为 netease_nodejs。不是所有音源都已启用，请勿自行遍历切源，也不要因音源失败改变用户要求的发送方式。
             send_mode(string): 仅对本次点歌生效，不修改默认设置。留空或 auto 使用默认方式；用户要语音用 voice，要签名音乐卡片用 ark_card，普通音乐卡片用 card，音频文件用 file_local，链接文本用 text。按用户当前要求选择，不要把发送方式写入歌名。
         """
         modes = None
@@ -239,7 +239,11 @@ class MusicPlugin(Star):
             else self.get_player(default=True)
         )
         if not player:
-            return f"无可用播放器 {platform}"
+            available = "、".join(p.platform.name for p in self.players) or "无"
+            return (
+                f"音源 {platform or '默认音源'} 未启用。已启用音源：{available}。"
+                "未明确指定音源时请省略 platform，使用默认音源。"
+            )
         songs = await player.fetch_songs(
             keyword=song_name, limit=self.cfg.search_config.song_limit
         )
