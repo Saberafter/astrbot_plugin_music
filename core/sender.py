@@ -531,6 +531,11 @@ class MusicSender:
         if not song.audio_url:
             return False
         try:
+            if isinstance(event, AiocqhttpMessageEvent):
+                payloads = {
+                    "message": [{"type": "record", "data": {"file": song.audio_url}}]
+                }
+                return await self.send_msg(event, payloads) is not None
             seg = Record.fromURL(song.audio_url)
             await event.send(event.chain_result([seg]))
             return True
@@ -550,6 +555,15 @@ class MusicSender:
             return False
 
         try:
+            if isinstance(event, AiocqhttpMessageEvent):
+                # The OneBot peer must share this path, e.g. through a Docker bind mount.
+                # Send the source file directly to avoid AstrBot's WAV/base64 conversion.
+                payloads = {
+                    "message": [
+                        {"type": "record", "data": {"file": file_path.resolve().as_uri()}}
+                    ]
+                }
+                return await self.send_msg(event, payloads) is not None
             seg = Record.fromFileSystem(str(file_path.resolve()))
             await event.send(event.chain_result([seg]))
             return True
